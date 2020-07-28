@@ -7,15 +7,15 @@ from paras import *
 #look==> https://opendata.cwb.gov.tw/dist/opendata-swagger.html
 
 root_url = 'http://opendata.cwb.gov.tw/api/v1/rest/datastore/'
-dataid_list = ['O-A0001-001']
+dataid_list = ['O-A0001-001', 'O-A0002-001', 'O-A0003-001']
 
 def get_data(data_id, limit):
-	api_url = '{}{}?Authorization={}&limit={}'.format(root_url, data_id, api_key, limit)
+	api_url = '{}{}?Authorization={}'.format(root_url, data_id, api_key)  #&limit={}  , limit
 	r = requests.get(api_url)
 	data = r.json()
 	return data
 
-def parse_json_for_O_A0001_001(data):
+def parse_json(data):
 	columns = ['stationId', 'locationName', 'lat', 'lon', 'obstime', 'ELEV', 'RAIN', 'MIN_10', 'HOUR_3', 'HOUR_6', 'HOUR_12', 'HOUR_24', 'NOW']
 	df = pd.DataFrame(columns=columns)
 	data_dict = {}
@@ -44,11 +44,13 @@ def parse_json_for_O_A0001_001(data):
 	return df
 
 if __name__ == "__main__":
-	json_data = get_data(dataid_list[0], 100)
-	df = parse_json_for_O_A0001_001(json_data)
+	for dataid in dataid_list:
+		json_data = get_data(dataid, 100)
+		df = parse_json(json_data)
 
-	current_datetime = datetime.datetime.now()
-	df['reportTime'] = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+		current_datetime = datetime.datetime.now()
+		df['reportTime'] = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-	save_file_name = './{}_O_A0001_001data.csv'.format(current_datetime.strftime('%Y-%m-%d_%H-%M-%S'))
-	df.to_csv(save_file_name, encoding='utf-8', index=False)
+		save_file_name = './{}{}data.csv'.format(current_datetime.strftime('%Y-%m-%d_%H-%M-%S'), dataid)
+		df.to_csv(save_file_name, encoding='utf-8', index=False)
+		print('save ok:)')
