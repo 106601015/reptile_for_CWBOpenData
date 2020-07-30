@@ -1,26 +1,31 @@
 import datetime
 from bs4 import BeautifulSoup
 import pandas as pd
+from openpyxl import load_workbook
 import numpy as np
 import requests
 from paras import *
 #look==> https://opendata.cwb.gov.tw/dist/opendata-swagger.html
 
 root_url = 'http://opendata.cwb.gov.tw/api/v1/rest/datastore/'
-dataid_list = ['O-A0001-001', 'O-A0002-001', 'O-A0003-001']
+dataid_list = ['O-A0001-001'] #you can add the others dataid for list
 
-def get_data(data_id, limit):
-	api_url = '{}{}?Authorization={}'.format(root_url, data_id, api_key)  #&limit={}  , limit
+limit = 100
+location = '坪林'
+
+def get_data(data_id, limit, location):
+	api_url = '{}{}?Authorization={}&locationName={}'.format(root_url, data_id, api_key, location)
 	r = requests.get(api_url)
 	data = r.json()
 	return data
 
 def parse_json(data):
-	columns = ['stationId', 'locationName', 'lat', 'lon', 'obstime', 'ELEV', 'RAIN', 'MIN_10', 'HOUR_3', 'HOUR_6', 'HOUR_12', 'HOUR_24', 'NOW']
+	columns = ['stationId', 'locationName', 'lat', 'lon', 'obstime', 'ELEV', 'WDIR', 'WDSD', 'TEMP', 'HUMD', 'PRES', 'H_24R', 'H_FX', 'H_XD', 'H_FXT', 'D_TX', 'D_TXT', 'D_TN', 'D_TNT', 'CITY', 'CITY_SN', 'TOWN', 'TOWN_SN']
 	df = pd.DataFrame(columns=columns)
 	data_dict = {}
 	locations = data['records']['location']
 	row = -1
+	#if data include lot of location, then cycle
 	for location in locations:
 		row = row + 1
 		data_dict['stationId'] = location['stationId']
@@ -45,12 +50,20 @@ def parse_json(data):
 
 if __name__ == "__main__":
 	for dataid in dataid_list:
-		json_data = get_data(dataid, 100)
+		json_data = get_data(dataid, limit, location)
 		df = parse_json(json_data)
 
 		current_datetime = datetime.datetime.now()
-		df['reportTime'] = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
+		df['downloadTime'] = current_datetime.strftime('%Y-%m-%d %H:%M:%S')
 
-		save_file_name = './{}{}data.csv'.format(current_datetime.strftime('%Y-%m-%d_%H-%M-%S'), dataid)
-		df.to_csv(save_file_name, encoding='utf-8', index=False)
+		#call old .xlsx file and append df on it==>startrow
+		book = load_workbook('O-A0001-001坪林data.xlsx')
+		writer = pd.ExcelWriter('O-A0001-001坪林data.xlsx', engine='openpyxl')
+		writer.book = book
+		writer.sheets = {ws.title: ws for ws in book.worksheets}
+
+		for sheetname in writer.sheets:
+			df.to_excel(writer,sheet_name=sheetname, startrow=writer.sheets[sheetname].max_row, index = False,header= False)
+		writer.save()
+
 		print('save ok:)')
